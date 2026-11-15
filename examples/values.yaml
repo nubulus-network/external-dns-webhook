@@ -1,0 +1,47 @@
+# Values for the official external-dns chart:
+#   helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+#   helm upgrade --install external-dns external-dns/external-dns -f values.yaml
+#
+# The Secret is created beforehand with an application token (role: member):
+#   kubectl create secret generic nubulus-credentials \
+#     --from-literal=client-id=... --from-literal=client-secret=...
+
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: ghcr.io/nubulus-network/external-dns-webhook
+      tag: "0.1.0"
+    env:
+      - name: NUBULUS_CLIENT_ID
+        valueFrom:
+          secretKeyRef:
+            name: nubulus-credentials
+            key: client-id
+      - name: NUBULUS_CLIENT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: nubulus-credentials
+            key: client-secret
+    livenessProbe:
+      httpGet:
+        path: /healthz
+    readinessProbe:
+      httpGet:
+        path: /readyz
+
+# Identifies the records this cluster owns. Use a different value per cluster
+# when several clusters share an account.
+txtOwnerId: my-cluster
+
+# Optional: restrict to some zones of the account. Without it, every active
+# zone is managed.
+domainFilters:
+  - example.com
+
+sources:
+  - service
+  - ingress
+
+# "upsert-only" never deletes; "sync" also removes records whose source is gone.
+policy: sync
